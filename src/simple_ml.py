@@ -87,7 +87,16 @@ def softmax_loss(Z, y):
         Average softmax loss over the sample.
     """
     ### BEGIN YOUR CODE
-    pass
+    # https://www.youtube.com/watch?v=ILmANxT-12I
+    def softmax(x):
+        return np.exp(x)/sum(np.exp(x))
+
+    loss = []
+    for batch_idx in range(len(Z)):
+        target = y[batch_idx]
+        pred = Z[batch_idx]
+        loss.append(-(np.log(softmax(pred)[target]) * 1))
+    return np.average(loss)
     ### END YOUR CODE
 
 
