@@ -20,7 +20,7 @@ def add(x, y):
         Sum of x + y
     """
     ### BEGIN YOUR CODE
-    pass
+    return x + y
     ### END YOUR CODE
 
 
@@ -47,8 +47,27 @@ def parse_mnist(image_filename, label_filename):
                 labels of the examples.  Values should be of type np.uint8 and
                 for MNIST will contain the values 0-9.
     """
+
+    def normalize_data(data):
+        return (data - np.min(data)) / (np.max(data) - np.min(data))
     ### BEGIN YOUR CODE
-    pass
+    from array import array
+
+    # load image to X      
+    with gzip.open(image_filename, 'rb') as f:
+        # Users of Intel processors and other low-endian machines must flip the bytes of the header
+        _, count, row, col = struct.unpack('>iiii', f.read(16))
+        image_data = array("B", f.read())
+        X = np.asarray(image_data, dtype=np.float32).reshape(count, row * col)
+    # normalization
+    X = normalize_data(X)
+    # load image lable to Y
+    with gzip.open(label_filename, 'rb') as f:
+        _, count = struct.unpack('>ii', f.read(8))
+        label_data = array("B", f.read())
+        Y = np.asarray(label_data, dtype=np.uint8)
+
+    return (X, Y)
     ### END YOUR CODE
 
 
