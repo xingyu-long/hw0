@@ -89,14 +89,9 @@ def softmax_loss(Z, y):
     ### BEGIN YOUR CODE
     # https://www.youtube.com/watch?v=ILmANxT-12I
     def softmax(x):
-        return np.exp(x)/sum(np.exp(x))
+        return np.exp(x)/np.sum(np.exp(x), axis=1)[:,None]
 
-    loss = []
-    for batch_idx in range(len(Z)):
-        target = y[batch_idx]
-        pred = Z[batch_idx]
-        loss.append(-(np.log(softmax(pred)[target]) * 1))
-    return np.average(loss)
+    return np.average(-np.log(softmax(Z)[np.indices(y.shape)[0], y]))
     ### END YOUR CODE
 
 
