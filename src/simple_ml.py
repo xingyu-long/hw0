@@ -174,7 +174,51 @@ def nn_epoch(X, y, W1, W2, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    """
+    Shape:
+        d: d-dimensional hidden unit
+        W_1: n * d
+        W_2: d * k
+        X: m * n
+
+    minimize (RELU(X W_1)W_2, y)
+    RELU(X W_1)W_2 -> (m * d) dot (d * k) -> m * k
+
+    Z_1: m * d, ReLU(XW1)
+    G_2: m * k, normalize(exp(Z_1 * W_2)) - I_y
+    G_1: m * d, 1{Z_1 > 0} matmul (G_2(W_2)^T)
+
+
+    Gradient for W_1 and W_2:
+        1/m X^T * G1 -> (n * m) dot (m * d) -> n * d
+        1/m (Z_1)^T * G2 -> (d * m) dot (m * k) -> d * k
+    """
+    def relu(x):
+        return np.maximum(0, x)
+
+    def softmax(x):
+        return np.exp(x)/np.sum(np.exp(x), axis=1)[:,None]
+
+    for i in range(X.shape[0] // batch):
+        batch_start, batch_end = i * batch, (i + 1) * batch
+        batch_X = X[batch_start: batch_end]
+        batch_y = y[batch_start: batch_end]
+        Z_1 = relu(np.dot(batch_X, W1))
+        Z_2 = softmax(np.dot(Z_1, W2))
+        
+        I_y = np.zeros(Z_2.shape)
+        I_y[np.indices((batch, ))[0], batch_y] = 1
+
+        G_2 = Z_2 - I_y
+        binary_matrix = (Z_1 > 0).astype(int)
+        G_1 = np.multiply(binary_matrix, np.dot(G_2, np.transpose(W2)))
+        # gradient for w1 and w2
+        g_1 = np.dot(np.transpose(batch_X), G_1) / batch
+        g_2 = np.dot(np.transpose(Z_1), G_2) / batch
+        # apply gradient to w1 and w2
+        W1 -= lr * g_1
+        W2 -= lr * g_2
+
     ### END YOUR CODE
 
 
