@@ -114,7 +114,40 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
         None
     """
     ### BEGIN YOUR CODE
-    pass
+    """
+    shape: 
+        input: m * n
+        theta: n * k
+        output: m * k
+        x: n * 1
+        h(x): (theta)^T .* x -> (k * n) .* (n * 1) -> k * 1
+
+    derivative (gradient) of the loss:
+        result = x(z - e_{y})^T
+        z = normalize(exp(h(x)))
+
+        (n * 1) .* (k * 1 - k * 1)^T -> n * k
+    
+    mini-Batch:
+        X = m' * n
+        result = 1/m * X^T(Z - I_{y}) -> (n * m') .* (m' * k) -> n * k
+        Z = normalize(exp(X .* theta)) -> (m' * n).* (n * k) -> m' * k
+    
+    update the theta by lr:
+        theta = theta  - lr * (gradient of theta)
+    """
+    def softmax(x):
+        return np.exp(x)/np.sum(np.exp(x), axis=1)[:,None]
+
+    for i in range(X.shape[0] // batch):
+        batch_start, batch_end = i * batch, (i + 1) * batch
+        batch_X = X[batch_start: batch_end]
+        batch_Z = softmax(np.dot(batch_X, theta))
+        batch_y = y[batch_start: batch_end]
+        I_y = np.zeros(batch_Z.shape)
+        I_y[np.indices((batch, ))[0], batch_y] = 1
+        g = np.dot(np.transpose(batch_X), batch_Z - I_y) / batch
+        theta -= lr * g
     ### END YOUR CODE
 
 
