@@ -2,9 +2,75 @@
 #include <pybind11/numpy.h>
 #include <cmath>
 #include <iostream>
+#include <stdio.h>
+#include <cassert>
+#include <cstring>
+
 
 namespace py = pybind11;
 
+
+float *softmax(float *data, size_t rows, size_t cols)
+{
+    float *result= (float *)malloc((a_rows * b_cols) * sizeof(float));
+    // apply exp to all data
+    for (int i = 0; i < rows; i++)
+    {
+        for (int j = 0; j < cols; j++)
+        {
+            result[i * cols + j] = exp(data[i * cols + j]);
+        }
+    }
+
+    // average by row
+    for (int i = 0; i < rows; i++) {
+        float sum = 0.0;
+        for (int j = 0; j < cols; j++) {
+            sum += result[i * cols + j];
+        }
+
+        for (int j = 0; j < cols; j++) {
+            result[i * cols + j] = result[i * cols + j] / sum;
+        }
+    }
+    return result;
+}
+
+float *dot(float *a, float *b, size_t a_rows, size_t a_cols, size_t b_rows, size_t b_cols) {
+    assert(a_cols == b_rows && "Cannot perform dot product operation");
+    float *result= (float *)malloc((a_rows * b_cols) * sizeof(float));
+    for (int i = 0; i < a_rows; i++) {
+        for (int j = 0; j < b_cols; j++) {
+            for (int k = 0; k < a_cols; k++) {
+                result[i * b_cols + j] += a[i * a_cols + k] * b[k * b_cols + j];
+            }
+            printf("%f\t", result[i * b_cols + j]);
+        }
+        printf("\n");
+    }
+    return result;
+}
+
+float *zeros(size_t rows, size_t cols)
+{
+    return (float*)calloc((rows * cols), sizeof(float));
+}
+
+float *transpose(float *data, size_t batch_start, size_t batch_end, size_t cols)
+{
+    // input: (batch, cols)
+    float *result = (float*)calloc((cols * (batch_end - batch_start)), sizeof(float));
+
+    for (int i = batch_start; i < batch_end; i++) {
+        for (int j = 0; j < cols; j++) {
+            int curr_idx = i * cols + j;
+            int next_idx = j * (batch_end - batch_start) + i;
+            result[next_idx] = data[curr_idx];
+        }
+    }
+    return result;
+    // output: (cols, batch)
+}
 
 void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
 								  float *theta, size_t m, size_t n, size_t k,
@@ -33,7 +99,7 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      */
 
     /// BEGIN YOUR CODE
-
+    printf(X);
     /// END YOUR CODE
 }
 
