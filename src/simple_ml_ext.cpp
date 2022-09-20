@@ -12,11 +12,11 @@ namespace py = pybind11;
 
 float *softmax(float *data, size_t rows, size_t cols)
 {
-    float *result= (float *)malloc((a_rows * b_cols) * sizeof(float));
-    // apply exp to all data
+    float *result= (float *)malloc((rows * cols) * sizeof(float)); 
+    // apply exp to all data 
     for (int i = 0; i < rows; i++)
     {
-        for (int j = 0; j < cols; j++)
+        for (int j = 0; j < cols; j++) 
         {
             result[i * cols + j] = exp(data[i * cols + j]);
         }
@@ -36,10 +36,10 @@ float *softmax(float *data, size_t rows, size_t cols)
     return result;
 }
 
-float *dot(float *a, float *b, size_t a_rows, size_t a_cols, size_t b_rows, size_t b_cols) {
+float *dot(float *a, float *b, size_t a_batch_start, size_t a_batch_end, size_t a_cols, size_t b_rows, size_t b_cols) {
     assert(a_cols == b_rows && "Cannot perform dot product operation");
-    float *result= (float *)malloc((a_rows * b_cols) * sizeof(float));
-    for (int i = 0; i < a_rows; i++) {
+    float *result= (float *)malloc(((a_batch_end - a_batch_start) * b_cols) * sizeof(float));
+    for (int i = a_batch_start; i < a_batch_end; i++) {
         for (int j = 0; j < b_cols; j++) {
             for (int k = 0; k < a_cols; k++) {
                 result[i * b_cols + j] += a[i * a_cols + k] * b[k * b_cols + j];
@@ -54,6 +54,34 @@ float *dot(float *a, float *b, size_t a_rows, size_t a_cols, size_t b_rows, size
 float *zeros(size_t rows, size_t cols)
 {
     return (float*)calloc((rows * cols), sizeof(float));
+}
+
+// verified
+float *set_ones(float *a, float *b, size_t a_rows, size_t a_cols, size_t b_start, size_t b_end, size_t b_cols)
+{
+    assert(a_rows == (b_end - b_start) && "Cannot perform dot set_ones operation");
+    // a -> I_y, b-> batch_y (label)
+    for (int i = b_start; i < b_end; i++) {
+        for (int j = 0; j < b_cols; j++) {
+            int idx = b[i * b_cols + j];
+            a[(i - b_start) * a_cols + idx] = 1;
+        }
+    }
+    return a;
+}
+
+// verified
+float *subtract(float *a, float *b, size_t row_start, size_t row_end, size_t col_start, size_t col_end)
+{
+    size_t rows = row_end - row_start;
+    size_t cols = col_end - col_start;
+    float *result = (float*)calloc((rows * cols), sizeof(float));
+    for (int i = row_start; i < row_end; i++) {
+        for (int j = col_start; j < col_end; j++) {
+            result[i * (cols) + j] = a[i * (cols) + j] - b[i * (cols) + j];
+        }
+    }
+    return result;
 }
 
 float *transpose(float *data, size_t batch_start, size_t batch_end, size_t cols)
@@ -99,7 +127,18 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      */
 
     /// BEGIN YOUR CODE
-    printf(X);
+    for (int i = 0; i < m / batch; i++) {
+        printf("--------- %d iterations ---------", i);
+        size_t batch_start = i * batch;
+        size_t batch_end = (i + 1) * batch;
+        // float *batch_Z = softmax(dot(X, theta, batch_start, batch_end, n, n, k), batch_end - batch_start, k);
+        // float *I_y = zeros(batch_end - batch_start, k);
+        // set_ones(I_y, y, batch_end - batch_start, k, batch_start, batch_end, 1);
+        // float *sub = subtract(batch_Z, I_y, 0, batch, 0, k);
+        // float *g = dot(transpose(X, batch_start, batch_end, n), subtract, batch_start, batch_end, )
+
+
+    }
     /// END YOUR CODE
 }
 
