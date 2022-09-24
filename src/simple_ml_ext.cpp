@@ -5,20 +5,23 @@
 #include <stdio.h>
 #include <cassert>
 #include <cstring>
+#include <vector>
+using namespace std;
 
 
 namespace py = pybind11;
 
 
-float *softmax(float *data, size_t rows, size_t cols)
+vector<float> softmax(vector<float> data, size_t rows, size_t cols)
 {
-    float *result= (float*)calloc((rows * cols), sizeof(float));
+    vector<float> result(rows * cols, 0.0);
     // apply exp to all data 
     for (size_t i = 0; i < rows; i++)
     {
         for (size_t j = 0; j < cols; j++) 
         {
             result[i * cols + j] = exp(data[i * cols + j]);
+            // result[i * cols + j] = exp(data[i * cols + j]);
         }
     }
 
@@ -30,28 +33,14 @@ float *softmax(float *data, size_t rows, size_t cols)
         }
 
         for (size_t j = 0; j < cols; j++) {
-            result[i * cols + j] = result[i * cols + j] / sum;
+            result[i * cols + j] /= sum;
         }
     }
     return result;
 }
 
-float *dot(const float *a, float *b, size_t a_batch_start, size_t a_batch_end, size_t a_col_start, size_t a_col_end, size_t b_rows, size_t b_cols) {
-    assert(a_col_end - a_col_start == b_rows && "Cannot perform dot product operation");
-    float *result= (float *)calloc(((a_batch_end - a_batch_start) * b_cols), sizeof(float));
-    for (size_t i = a_batch_start; i < a_batch_end; i++) {
-        for (size_t j = 0; j < b_cols; j++) {
-            for (size_t k = 0; k < b_rows; k++) {
-                result[i * b_cols + j] += a[i * b_cols + k] * b[k * b_cols + j];
-            }
-            // printf("%f\t", result[i * b_cols + j]);
-        }
-        // printf("\n");
-    }
-    return result;
-}
 
-float *new_dot(float *a, float *b, size_t a_row_start, size_t a_row_end, size_t a_col_start, size_t a_col_end,
+vector<float> new_dot(vector<float> a, vector<float> b, size_t a_row_start, size_t a_row_end, size_t a_col_start, size_t a_col_end,
                 size_t b_row_start, size_t b_row_end, size_t b_col_start, size_t b_col_end)
 {
     size_t a_rows = a_row_end - a_row_start;
@@ -60,17 +49,17 @@ float *new_dot(float *a, float *b, size_t a_row_start, size_t a_row_end, size_t 
     size_t b_cols = b_col_end - b_col_start;
     // printf("shape for 1nd input (%d, %d)\n", a_rows, a_cols);
     // printf("shape for 2nd input (%d, %d)\n", b_rows, b_cols);
-    float *result= (float *)calloc((a_rows * b_cols), sizeof(float));
+    vector<float> result(a_rows * b_cols, 0.0);
     for (size_t i = a_row_start; i < a_row_end; i++) {
         for (size_t j = b_col_start; j < b_col_end; j++) {
             // prod[i][j] = prod[i][j] + a[i][k] * b[k][j];   
             // printf("for i = %d, j = %d\n", i, j);
             float sum = 0.0;
             for (size_t k = b_row_start; k < b_row_end; k++) {
-                sum += a[i * a_cols + k] * b[k * b_cols + j];
+                sum += a[(i - a_row_start) * a_cols + (k - b_row_start)] * b[(k - b_row_start) * b_cols + (j - b_col_start)];
                 // printf("a[%d][%d](%f) * b[%d][%d](%f) \t", i, k, a[i * a_cols + k], k, j, b[k * b_cols + j]);
             }
-            result[i * b_cols + j] = sum;
+            result[(i - a_row_start) * b_cols + (j - b_col_start)] = sum;
             // printf("\n");
             // printf("%f \n", result[i * b_cols + j]);  
         }
@@ -79,19 +68,21 @@ float *new_dot(float *a, float *b, size_t a_row_start, size_t a_row_end, size_t 
     return result;
 }
 
+//TODO(xlong): visit here later
 float *zeros(size_t rows, size_t cols)
 {
     return (float*)calloc((rows * cols), sizeof(float));
 }
 
 // verified
-float *set_ones(float *a, const unsigned char *b, size_t a_rows, size_t a_cols, size_t b_start, size_t b_end, size_t b_cols)
+//TODO(xlong): visit here later
+vector<float> set_ones(vector<float> a, vector<int> b, size_t a_rows, size_t a_cols, size_t b_start, size_t b_end, size_t b_cols)
 {
     assert(a_rows == (b_end - b_start) && "Cannot perform dot set_ones operation");
     // a -> I_y, b-> batch_y (label)
     for (size_t i = b_start; i < b_end; i++) {
         for (size_t j = 0; j < b_cols; j++) {
-            int idx = (int) b[i * b_cols + j];
+            int idx = b[i * b_cols + j];
             a[(i - b_start) * a_cols + idx] = 1;
         }
     }
@@ -99,39 +90,40 @@ float *set_ones(float *a, const unsigned char *b, size_t a_rows, size_t a_cols, 
 }
 
 // verified
-float *subtract(float *a, float *b, size_t row_start, size_t row_end, size_t col_start, size_t col_end)
+vector<float> subtract(vector<float> a, vector<float> b, size_t row_start, size_t row_end, size_t col_start, size_t col_end)
 {
     size_t rows = row_end - row_start;
     size_t cols = col_end - col_start;
-    float *result = (float*)calloc((rows * cols), sizeof(float));
+    vector<float> result(rows * cols, 0.0);
     for (size_t i = row_start; i < row_end; i++) {
         for (size_t j = col_start; j < col_end; j++) {
-            result[i * (cols) + j] = a[i * (cols) + j] - b[i * (cols) + j];
+            result[(i - row_start) * (cols) + (j - col_start)] = a[(i - row_start) * (cols) + (j - col_start)] - b[(i - row_start) * (cols) + (j - col_start)];
         }
     }
     return result;
 }
 
-void subtract_in_place(float *a, float *b, size_t row_start, size_t row_end, size_t col_start, size_t col_end)
+// subtract
+void subtract_in_place(float *a, vector<float> b, size_t row_start, size_t row_end, size_t col_start, size_t col_end)
 {
     size_t rows = row_end - row_start;
     size_t cols = col_end - col_start;
     for (size_t i = row_start; i < row_end; i++) {
         for (size_t j = col_start; j < col_end; j++) {
-            a[i * (cols) + j] -= b[i * (cols) + j];
+            a[i * (cols) + j] -= b[(i - row_start) * (cols) + (j - col_start)];
         }
     }
 }
 
-float *transpose(const float *data, size_t batch_start, size_t batch_end, size_t cols)
+vector<float> transpose(vector<float> data, size_t batch_start, size_t batch_end, size_t cols)
 {
     // input: (batch, cols)
-    float *result = (float*)calloc((cols * (batch_end - batch_start)), sizeof(float));
+    vector<float> result(cols * (batch_end - batch_start), 0.0);
 
     for (size_t i = batch_start; i < batch_end; i++) {
         for (size_t j = 0; j < cols; j++) {
-            size_t curr_idx = i * cols + j;
-            size_t next_idx = j * (batch_end - batch_start) + i;
+            size_t curr_idx = (i - batch_start)* cols + j;
+            size_t next_idx = j * (batch_end - batch_start) + (i - batch_start);
             result[next_idx] = data[curr_idx];
         }
     }
@@ -139,9 +131,9 @@ float *transpose(const float *data, size_t batch_start, size_t batch_end, size_t
     // output: (cols, batch)
 }
 
-float *multiply(float *data, float lr, size_t rows, size_t cols)
+vector<float> multiply(vector<float> data, float lr, size_t rows, size_t cols)
 {
-    float *result = (float*)calloc((rows * cols), sizeof(float));
+    vector<float> result(rows * cols, 0.0);
     for (size_t i = 0; i < rows; i++) {
         for (size_t j = 0; j < cols; j++) {
             result[i * cols + j] = data[i * cols + j] * lr;
@@ -150,9 +142,9 @@ float *multiply(float *data, float lr, size_t rows, size_t cols)
     return result;
 }
 
-float *divide(float *data, size_t div, size_t rows, size_t cols)
+vector<float> divide(vector<float> data, size_t div, size_t rows, size_t cols)
 {
-    float *result = (float*)calloc((rows * cols), sizeof(float));
+    vector<float> result(rows * cols, 0.0);
     for (size_t i = 0; i < rows; i++) {
         for (size_t j = 0; j < cols; j++) {
             result[i * cols + j] = data[i * cols + j] / div;
@@ -171,26 +163,14 @@ void print_helper(float *data, size_t r_start, size_t r_end, size_t c_start, siz
     }
 }
 
-float *dot2(float *a, float *b, size_t a_batch_start, size_t a_batch_end, size_t a_col_start, size_t a_col_end, size_t b_rows, size_t b_cols) {
-    
-    // printf("------- transpose result ------\n");
-    // print_helper(a, a_col_start, a_col_end, a_batch_start, a_batch_end);
-
-    // printf("------- subtract result ------\n");
-    // print_helper(b, 0, b_rows, 0, b_cols);
-
-    // assert(a_batch_end - a_batch_start == b_rows && "Cannot perform dot product operation");
-    float *result= (float *)calloc(((a_batch_end - a_batch_start) * b_cols), sizeof(float));
-    for (int i = a_batch_start; i < a_batch_end; i++) {
-        for (int j = 0; j < b_cols; j++) {
-            for (int k = a_col_start; k < a_col_end; k++) {
-                result[i * b_cols + j] += a[i * (a_col_end - a_col_start) + k] * b[k * b_cols + j];
-            }
-            // printf("%f\t", result[i * b_cols + j]);
+void print_vector(vector<float> data, size_t r_start, size_t r_end, size_t c_start, size_t c_end) 
+{
+    for (size_t i = r_start; i < r_end; i++) {
+        for (size_t j = c_start; j < c_end; j++) {
+            printf("%f \t", data[(i - r_start) * (c_end - c_start) + (j - c_start)]);
         }
-        // printf("\n");
+        printf("\n");
     }
-    return result;
 }
 
 void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
@@ -219,6 +199,8 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
      *     (None)
      */
 
+    vector<float> X_vector (X, X + (m * n));
+    vector<int> y_vector (y, y + m);
     /// BEGIN YOUR CODE
     for (size_t i = 0; i < m / batch; i++) {
         printf("--------- %zu iterations ---------\n", i);
@@ -226,38 +208,40 @@ void softmax_regression_epoch_cpp(const float *X, const unsigned char *y,
         size_t batch_end = (i + 1) * batch;
         printf("------- X ------\n");
         // print_helper((float *)X, batch_start, batch_end, 0, n);
+        vector<float> theta_vector(theta, theta + (n * k));
         printf("------- theta ------\n");
-        // print_helper((float *)theta, 0, n, 0, k);
-        // float *dot_res = dot(X, theta, batch_start, batch_end, 0, n, n, k); // (m' * n) dot (n * k) -> m' * k
-        float *dot_res = new_dot((float*)X, theta, batch_start, batch_end, 0, n, 0, n, 0, k); // m' * k
+        print_vector(theta_vector, 0, n, 0, k);
+        vector<float> dot_res = new_dot(X_vector, theta_vector, batch_start, batch_end, 0, n, 0, n, 0, k); // m' * k
 
         printf("------- dot result ------\n");
-        // print_helper(dot_res, 0, batch, 0, k);
-        float *batch_Z = softmax(dot_res, batch_end - batch_start, k); // m' * k
-        float *I_y = zeros(batch_end - batch_start, k); // m' * k
-        set_ones(I_y, y, batch_end - batch_start, k, batch_start, batch_end, 1);
+        print_vector(dot_res, 0, batch, 0, k);
+        vector<float> batch_Z = softmax(dot_res, batch_end - batch_start, k); // m' * k
+        printf("------- softmax result ------\n");
+        print_vector(batch_Z, 0, batch, 0, k);
+        // float *I_y = zeros(batch_end - batch_start, k); // m' * k
+        vector<float> I_y((batch_end - batch_start) * k, 0.0);
+        I_y = set_ones(I_y, y_vector, batch_end - batch_start, k, batch_start, batch_end, 1);
         printf("------- set_ones result ------\n");
-        // print_helper(I_y, 0, batch, 0, k);
-        float *sub_res = subtract(batch_Z, I_y, batch_start, batch_end, 0, k); // m' * k
+        print_vector(I_y, 0, batch, 0, k);
+        vector<float> sub_res = subtract(batch_Z, I_y, batch_start, batch_end, 0, k); // m' * k
         printf("------- subtract result ------\n");
-        // print_helper(sub_res, 0, batch, 0, k);
-        std::cout << "Pointer's address: " << &X << std::endl; 
-        float *transpose_res = transpose(X, batch_start, batch_end, n); // n * m'
+        print_vector(sub_res, 0, batch, 0, k);
+        vector<float> transpose_res = transpose(X_vector, batch_start, batch_end, n); // n * m'
         printf("------- transpose result ------\n");
-        // print_helper(transpose_res, 0, n, 0, batch);
-        // float *g = dot2(transpose_res, sub_res, 0, n, 0, batch, batch, k); // (n * m') dot (m' * k) -> n * k
-        float *g = new_dot(transpose_res, sub_res, 0, n, batch_start, batch_end, batch_start, batch_end, 0, k); // (n * m') dot (m' * k) -> n * k
+        print_vector(transpose_res, 0, n, 0, batch);
+        vector<float> g = new_dot(transpose_res, sub_res, 0, n, batch_start, batch_end, batch_start, batch_end, 0, k); // (n * m') dot (m' * k) -> n * k
         printf("------- g result before divide ------\n");
-        // print_helper(g, 0, n, 0, k);
-        float *div = divide(g, batch, n, k);
+        print_vector(g, 0, n, 0, k);
+        vector<float> div = divide(g, batch, n, k);
         printf("------- g result ------\n");
-        // print_helper(div, 0, n, 0, k);
-        float *mul = multiply(div, lr, n, k);
+        print_vector(g, 0, n, 0, k);
+        vector<float> mul = multiply(div, lr, n, k);
         printf("------- multiply result ------\n");
-        // print_helper(mul, 0, n, 0, k);
+        print_vector(mul, 0, n, 0, k);
         subtract_in_place(theta, mul, 0, n, 0, k);
         printf("------- theta result ------\n");
-        // print_helper(theta, 0, n, 0, k);
+        print_helper(theta, 0, n, 0, k);
+
     }
     /// END YOUR CODE
 }
