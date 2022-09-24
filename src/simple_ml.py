@@ -138,33 +138,17 @@ def softmax_regression_epoch(X, y, theta, lr = 0.1, batch=100):
     """
     def softmax(x):
         return np.exp(x)/np.sum(np.exp(x), axis=1)[:,None]
-    import sys
-    np.set_printoptions(threshold=sys.maxsize)
+    
     for i in range(X.shape[0] // batch):
+        print("-" * 20 + str(i) + " iteration" + "-" * 20)
         batch_start, batch_end = i * batch, (i + 1) * batch
         batch_X = X[batch_start: batch_end]
-        # print('batch_x,', batch_X.shape)
-        # print(repr(batch_X))
-        # print('dot result', repr(np.dot(batch_X, theta)))
         batch_Z = softmax(np.dot(batch_X, theta))
-        # print('batch_z', batch_Z.shape)
-        # print(repr(batch_Z))
         batch_y = y[batch_start: batch_end]
-        # print('batch_y', batch_y.shape)
-        # print(repr(batch_y))
         I_y = np.zeros(batch_Z.shape)
         I_y[np.indices((batch, ))[0], batch_y] = 1
-        # print('I_y', I_y.shape)
-        # print(repr(I_y))
-        # print('subtract', repr(batch_Z - I_y))
-        # print('transpose', repr(np.transpose(batch_X)))
-        # print('dot, ', repr(np.dot(np.transpose(batch_X), batch_Z - I_y)))
         g = np.dot(np.transpose(batch_X), batch_Z - I_y) / batch
-        # print('g', g.shape)
-        # print(repr(g))
-        # print('mut', repr(lr * g))
         theta -= lr * g
-        # print('theta', repr(theta))
     ### END YOUR CODE
 
 
